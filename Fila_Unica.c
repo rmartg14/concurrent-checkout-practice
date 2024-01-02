@@ -5,24 +5,35 @@
 #include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 #define ClientesMax 20 
 #define Cajeros 3
-pthread_t cajeros, reponedor, clientes;
+struct Cliente{
+	int estado;
+	int id;
+
+};
+struct Cliente *clientes;
+pthread_t cajeros, reponedor, cliente;
 pthread_mutex_t mutex_logs;
 pthread_mutex_t mutex_ListaClientes;
 pthread_mutex_t mutex_Reponedor;
 pthread_cond_t reponedorAcceso;
 FILE *logFile;
 const char *logFileName = "./archivo.log";
-void cajeroFuncion(void arg);
-void reponedorFuncion(void arg);
-void clienteFuncion(void arg);
+int contadorClientes, numeroClientes;
+void crearCliente(int sig);
+void *cajeroFuncion(void *arg);
+void *reponedorFuncion(void *arg);
+void *clienteFuncion(void *arg);
 //manejador señales (FALTA)
 
 int main(int argc, char const *argv[]){
 	 struct sigaction ss;
 	 ss.sa_handler=crearCliente;
+	 
 	  if (-1 == sigaction(SIGUSR1, &ss, NULL)) {
 	  	perror("ENTRADA DE CLIENTES: sigaction");
 		exit(-1);
@@ -39,6 +50,9 @@ int main(int argc, char const *argv[]){
 	if (pthread_cond_init(&reponedorAcceso, NULL) != 0){
 		exit(-1);
 	}
+	numeroClientes=ClientesMax;
+	clientes =(struct Cliente *)malloc(sizeof(struct Cliente) * numeroClientes);
+	contadorClientes=0;
     	pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
     	pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
     	pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
@@ -53,7 +67,18 @@ int main(int argc, char const *argv[]){
 	}
     return 0;
 }
-
+void crearCliente(int sig){
+	pthread_mutex_lock(&mutex_ListaClientes);
+	if(contadorClientes>=ClientesMax){
+		printf("NO se pueden introducir más clientes\n");
+	}else{
+		clientes[contadorClientes].estado=0;
+		clientes[contadorClientes].id=contadorClientes+1;
+		pthread_create(&cliente, NULL, clienteFuncion, &clientes[contadorClientes].id);
+		contadorClientes++;
+	}	
+	pthread_mutex_unlock(&mutex_ListaClientes);
+}
 void *cajeroFuncion(void *arg);
 void *reponedorFuncion(void *arg);
 void *clienteFuncion(void *arg);
