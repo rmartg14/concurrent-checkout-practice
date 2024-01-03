@@ -13,6 +13,7 @@
 struct Cliente{
 	int estado;
 	int id;
+	int maxTime_In_Line;
 
 };
 struct Cliente *clientes;
