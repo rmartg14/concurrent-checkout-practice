@@ -54,9 +54,9 @@ int main(int argc, char const *argv[]){
 	numeroClientes=ClientesMax;
 	clientes =(struct Cliente *)malloc(sizeof(struct Cliente) * numeroClientes);
 	contadorClientes=0;
-    	pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
-    	pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
-    	pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
+	for (int i = 0; i < Cajeros; i++) {
+		pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
+	}
     	pthread_create(&reponedor, NULL, reponedorFuncion, NULL);
 	
     
@@ -104,11 +104,11 @@ void crearCliente(int sig){
 	
 	
 	pthread_mutex_unlock(&mutex_ListaClientes);
-	int tiempo_atencion = rand()%4 + 1;
+	int tiempo_atencion = calculaNumRandom(1,5);
 	*msg = "El cliente ha empezado a ser atendido";
 	writeLogMessage(min_ID,*msg);
 	sleep(tiempo_atencion);
-	int res = rand()%100 +1;
+	int res = calculaNumRandom(1,100);
 	if (res <= 70) {
 		*msg = "La copra se ha realizado correctamente";
 	} else if (res>= 71 && res <= 95) {
@@ -116,7 +116,24 @@ void crearCliente(int sig){
 		//Falta llamar al reponedor
 		pthread_mutex_unlock(&mutex_Reponedor);
 	} else if (res >= 96) {
-		*msg = "El cliente no tenía dinero";
+		switch (res) {
+		case 96:
+			*msg = "El cliente no tenía dinero y no ha podido realizar la compra";
+			break;
+		case 97:
+			*msg = "Al cliente no le funciona la tarjeta y no ha podido realizar la compra";
+			break;
+		case 98:
+			*msg = "El cliente ha tenido una urgencia medica y no ha podido realizar la compra";
+			break;
+		case 99:
+			*msg = "El cliente era un fugitivo y ha sido arrestado por la policía, debido a eso no ha podido realizar la compra";
+			break;
+		default:
+			*msg = "El cliente ha sido sorprendido robando choped y se le ha echado de la tienda, por lo cual no ha podido terminar la compra";
+			break;
+		}
+		
 	}
 	writeLogMessage(min_ID,*msg);
 	pthread_mutex_lock(&mutex_ListaClientes);
