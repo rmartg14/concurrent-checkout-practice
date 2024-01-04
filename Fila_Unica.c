@@ -13,7 +13,6 @@
 struct Cliente{
 	int estado;
 	int id;
-	int maxTime_In_Line;
 
 };
 struct Cliente *clientes;
@@ -23,9 +22,10 @@ pthread_mutex_t mutex_ListaClientes;
 pthread_mutex_t mutex_Reponedor;
 pthread_cond_t reponedorAcceso;
 FILE *logFile;
-const char *logFileName = "./archivo.log";
+const char *logFileName = "./registroCaja.log";
 int contadorClientes, numeroClientes;
 void crearCliente(int sig);
+int calculaNumRandom(int min, int max);
 void *cajeroFuncion(void *arg);
 void *reponedorFuncion(void *arg);
 void *clienteFuncion(void *arg);
@@ -73,16 +73,60 @@ void crearCliente(int sig){
 	if(contadorClientes>=ClientesMax){
 		printf("NO se pueden introducir más clientes\n");
 	}else{
-		clientes[contadorClientes].estado=0;
-		clientes[contadorClientes].id=contadorClientes+1;
-		pthread_create(&cliente, NULL, clienteFuncion, &clientes[contadorClientes].id);
+		int i=0;
+		int posVacia=0;
+		while(i<ClientesMax&&posVacia==0){
+			if(clientes[i].id==0){
+				posVacia=1;
+			}
+		}
+		clientes[i].estado=0;
+		clientes[i].id=contadorClientes+1;
+		pthread_create(&cliente, NULL, clienteFuncion, &clientes[i].id);
 		contadorClientes++;
 	}	
 	pthread_mutex_unlock(&mutex_ListaClientes);
 }
 void *cajeroFuncion(void *arg);
 void *reponedorFuncion(void *arg);
-void *clienteFuncion(void *arg);
+void *clienteFuncion(void *clienteID){
+	int tiempoEspera;
+	int id=*(int*)clienteID;
+	char idString[15];
+	char entryString[52];
+	char exitString[65];
+	time_t hour=time(0);
+	sprintf(idString, "cliente_%02d", id);
+	strftime(entryString, sizeof(entryString), "La hora de entrada es: %Y-%m-%d %H:%M:%S", localtime(&hour));
+    	writeLogMessage(idString, entryString);
+	sleep(10);
+	tiempoEspera=calculaNumRandom(1,100);
+	if(tiempoEspera<90){
+		while(clientes[id-1].estado!=2){
+			pause();
+			
+		}
+		time_t hour=time(0);
+		strftime(exitString, sizeof(exitString), "El cliente termina de ser atendido a las: %Y-%m-%d %H:%M:%S", localtime(&hour));
+    		writeLogMessage(idString, exitString);
+		
+	}else{
+		time_t hour=time(0);
+		strftime(exitString, sizeof(exitString), "El cliente no es atendido y se va a las: %Y-%m-%d %H:%M:%S", localtime(&hour));
+    		writeLogMessage(idString, exitString);
+	}
+	pthread_mutex_lock(&mutex_ListaClientes);
+	clientes[contadorClientes].estado=0;
+	clientes[contadorClientes].id=0;
+	contadorClientes--;
+	pthread_mutex_unlock(&mutex_ListaClientes);
+
+}
+int calculaNumRandom(int min, int max) {
+    //calcula un numero random entre el minimo y el maximo
+    srand(getpid());
+    return rand() % (max-min+1) +min;
+}
 void writeLogMessage(char *id, char *msg) {
     // Calculamos la hora actual
     time_t now = time(0);
