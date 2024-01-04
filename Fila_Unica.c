@@ -86,8 +86,49 @@ void crearCliente(int sig){
 		contadorClientes++;
 	}	
 	pthread_mutex_unlock(&mutex_ListaClientes);
+}void *cajeroFuncion(void *arg){
+	int counter = 0;
+	int min_ID = 21;
+	char *msg;
+	while (contadorClientes == 0) {
+		sleep(1);
+	}
+	pthread_mutex_lock(&mutex_ListaClientes);
+	
+	for (int i = 0; i < contadorClientes; i++) {
+		if(clientes[i].id<min_ID){
+			min_ID = clientes[i].id;
+		}
+	}
+	clientes[min_ID].estado = 1;
+	
+	
+	pthread_mutex_unlock(&mutex_ListaClientes);
+	int tiempo_atencion = rand()%4 + 1;
+	*msg = "El cliente ha empezado a ser atendido";
+	writeLogMessage(min_ID,*msg);
+	sleep(tiempo_atencion);
+	int res = rand()%100 +1;
+	if (res <= 70) {
+		*msg = "La copra se ha realizado correctamente";
+	} else if (res>= 71 && res <= 95) {
+		pthread_mutex_lock(&mutex_Reponedor);
+		//Falta llamar al reponedor
+		pthread_mutex_unlock(&mutex_Reponedor);
+	} else if (res >= 96) {
+		*msg = "El cliente no tenía dinero";
+	}
+	writeLogMessage(min_ID,*msg);
+	pthread_mutex_lock(&mutex_ListaClientes);
+	clientes[min_ID].estado = 2;
+	pthread_mutex_unlock(&mutex_ListaClientes);
+	counter ++;
+	if (counter = 10) {
+		counter = 0;
+		sleep(20);
+	}
+	
 }
-void *cajeroFuncion(void *arg);
 void *reponedorFuncion(void *arg);
 void *clienteFuncion(void *clienteID){
 	int tiempoEspera;
