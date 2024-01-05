@@ -110,6 +110,8 @@ void crearCliente(int sig){
 		while(i<clientesMax&&posVacia==0){
 			if(clientes[i].id==0){
 				posVacia=1;
+			}else{
+				i++;
 			}
 		}
 		clientes[i].estado=0;
