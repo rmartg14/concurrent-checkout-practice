@@ -37,16 +37,22 @@ void *clienteFuncion(void *arg);
 int main(int argc, char const *argv[]){
 	 struct sigaction ss;
 	 ss.sa_handler=crearCliente;
-
-	 printf("Introduce el número de clientes máximos\n");
-	 scanf(" %d",&ClientesMax);
-	 printf("Introduce el número de cajeros\n");
-	 scanf(" %d", &CajerosMax);
-	 
-	  if (-1 == sigaction(SIGUSR1, &ss, NULL)) {
+	if (argv[1] <= 0){
+		ClientesMax = 20;
+	} else {
+		ClientesMax = argv[1];
+	}
+	
+	if (argv[2] <= 0) {
+		CajerosMax = 3;
+	} else {
+		CajerosMax = argv[2];
+	}
+	
+	if (-1 == sigaction(SIGUSR1, &ss, NULL)) {
 	  	perror("ENTRADA DE CLIENTES: sigaction");
 		exit(-1);
-	  }
+    }
 	if (pthread_mutex_init(&mutex_logs, NULL) != 0){
 		exit(-1);
 	}
