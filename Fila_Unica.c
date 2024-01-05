@@ -10,11 +10,10 @@
 #include <string.h>
 
 int ClientesMax;
-int CajerosMax ;
+int CajerosMax;
 struct Cliente{
 	int estado;
 	int id;
-
 };
 struct Cajero{
     int id;
@@ -34,6 +33,7 @@ int calculaNumRandom(int min, int max);
 void *cajeroFuncion(void *arg);
 void *reponedorFuncion(void *arg);
 void *clienteFuncion(void *arg);
+void writeLogMessage(char *id, char *msg);
 
 int main(int argc, char const *argv[]){
 	 struct sigaction ss;
@@ -41,13 +41,13 @@ int main(int argc, char const *argv[]){
 	if (argv[1] <= 0){
 		ClientesMax = 20;
 	} else {
-		ClientesMax = argv[1];
+		ClientesMax = atoi(argv[1]);
 	}
 	
 	if (argv[2] <= 0) {
 		CajerosMax = 3;
 	} else {
-		CajerosMax = argv[2];
+		CajerosMax = atoi(argv[2]);
 	}
 	
 	if (-1 == sigaction(SIGUSR1, &ss, NULL)) {
@@ -106,8 +106,8 @@ void crearCliente(int sig){
 	pthread_mutex_unlock(&mutex_ListaClientes);
 }void *cajeroFuncion(void *cajero_ID){
 	int numAtenciones;
-	int min_ID = 21;
-	int id=cajero_ID;
+	int min_ID = CajerosMax+1;
+	int id =*(int*) cajero_ID;
 	char idClienteString[15];
 	char idString[15];
 	char precioString[10];
@@ -121,7 +121,7 @@ void crearCliente(int sig){
         pthread_mutex_lock(&mutex_ListaClientes);
         
         for (int i = 0; i < contadorClientes; i++) {
-            if(clientes[i].id<min_ID){
+            if(clientes[i].id<min_ID && clientes[i].id != 0){
                 min_ID = clientes[i].id;
             }
         }
@@ -131,21 +131,27 @@ void crearCliente(int sig){
         pthread_mutex_unlock(&mutex_ListaClientes);
         
         int tiempo_atencion = calculaNumRandom(1,5);
+		
         sprintf(idString, "cajero_%02d", id);
-	sprintf(idClienteString, "%02d", min_ID);
-	sprintf(entryString, "El cliente %s empieza a ser atendido a las: ", idClienteString);
-	time_t hour=time(0);
+		sprintf(idClienteString, "%02d", min_ID);
+		sprintf(entryString, "El cliente %s empieza a ser atendido a las: ", idClienteString);
+		time_t hour=time(0);
        	strftime(entryString + strlen(entryString), sizeof(entryString) - strlen(entryString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-    	writeLogMessage(idString,entryString);
+    	
+		writeLogMessage(idString,entryString);
+		
         sleep(tiempo_atencion);
         int res = calculaNumRandom(1,100);
         precio= calculaNumRandom(1,100);
         if (res <= 70) {
-            	sprintf(precioString, "%02d", precio);
+			
+        	sprintf(precioString, "%02d", precio);
         	sprintf(exitString, "El cliente %s efectua su compra sin problemas gastando %s a las: ", idClienteString, precioString);
         	hour=time(0);
         	strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-        	writeLogMessage(idString,exitString);
+			
+			writeLogMessage(idString,exitString);
+			
         } else if (res>= 71 && res <= 95) {
             pthread_mutex_lock(&mutex_Reponedor);
             estadoReponedor=1;
@@ -154,48 +160,67 @@ void crearCliente(int sig){
                 pthread_cond_wait(&reponedorAcceso, &mutex_Reponedor);
             }
             pthread_mutex_unlock(&mutex_Reponedor);
-            sprintf(precioString, "%02d", precio);
+            
+			sprintf(precioString, "%02d", precio);
             sprintf(exitString, "El cliente %s efectua su compra tras esperar al reponedor gastando %s a las: ", idClienteString, precioString);
             hour=time(0);
             strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-            writeLogMessage(idString,exitString);
+            
+			writeLogMessage(idString,exitString);
+			
         } else if (res >= 96) {
             switch (res) {
             case 96:
+			
                	sprintf(exitString, "El cliente %s no tenía dinero y no ha podido realizar la compra y se va a las: ", idClienteString);
        		hour=time(0);
        		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-       		writeLogMessage(idString,exitString);
+       		
+			writeLogMessage(idString,exitString);
+			
                 break;
             case 97:
+			
                 sprintf(exitString, "Al cliente %s no le funciona la tarjeta y no ha podido realizar la compra y se va a las: ", idClienteString);
             	hour=time(0);
        		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-       		writeLogMessage(idString,exitString);
+       		
+			writeLogMessage(idString,exitString);
+			
                 break;
             case 98:
+			
                 sprintf(exitString, "El cliente %s ha tenido una urgencia medica y no ha podido realizar la compra y se va a las: ", idClienteString);
                 hour=time(0);
        		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-       		writeLogMessage(idString,exitString);
+       		
+			writeLogMessage(idString,exitString);
+			
                 break;
             case 99:
+			
                 sprintf(exitString, "El cliente %s era un fugitivo y ha sido arrestado por la policía no realizando su compra a las: ", idClienteString);
 		hour=time(0);
        		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-       		writeLogMessage(idString,exitString);
+       		
+			writeLogMessage(idString,exitString);
+			
                 break;
             default:
+			
                 sprintf(exitString, "El cliente %s ha sido sorprendido robando choped y se le ha echado de la tiendasin realizar su compra a las: ", idClienteString);
 		hour=time(0);
        		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-       		writeLogMessage(idString,exitString);
+       		
+			writeLogMessage(idString,exitString);
+			
             }
             
         }
         pthread_mutex_lock(&mutex_ListaClientes);
         clientes[min_ID].estado = 2;
         pthread_mutex_unlock(&mutex_ListaClientes);
+		min_ID = CajerosMax+1;
         numAtenciones ++;
         if (numAtenciones == 10) {
             numAtenciones = 0;
@@ -222,10 +247,13 @@ void *clienteFuncion(void *clienteID){
 	char idString[15];
 	char entryString[52];
 	char exitString[65];
+	
 	time_t hour=time(0);
 	sprintf(idString, "cliente_%02d", id);
 	strftime(entryString, sizeof(entryString), "La hora de entrada es: %Y-%m-%d %H:%M:%S", localtime(&hour));
-    	writeLogMessage(idString, entryString);
+    	//El problema creo que esta en esto del strftime
+		writeLogMessage(idString,exitString);
+		
 	sleep(10);
 	tiempoEspera=calculaNumRandom(1,100);
 	if(tiempoEspera<90){
@@ -233,14 +261,20 @@ void *clienteFuncion(void *clienteID){
 			sleep(1);
 			
 		}
+		
 		time_t hour=time(0);
 		strftime(exitString, sizeof(exitString), "El cliente termina de ser atendido a las: %Y-%m-%d %H:%M:%S", localtime(&hour));
-    		writeLogMessage(idString, exitString);
+    		
+			writeLogMessage(idString,exitString);
+			
 		
 	}else{
+		
 		time_t hour=time(0);
 		strftime(exitString, sizeof(exitString), "El cliente no es atendido y se va a las: %Y-%m-%d %H:%M:%S", localtime(&hour));
-    		writeLogMessage(idString, exitString);
+    		
+			writeLogMessage(idString,exitString);
+			
 	}
 	pthread_mutex_lock(&mutex_ListaClientes);
 	clientes[contadorClientes].estado=0;
