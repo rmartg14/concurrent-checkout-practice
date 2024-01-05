@@ -8,8 +8,8 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-#define ClientesMax 20 
-#define CajerosMax 3
+int ClientesMax;
+int CajerosMax ;
 struct Cliente{
 	int estado;
 	int id;
@@ -37,6 +37,11 @@ void *clienteFuncion(void *arg);
 int main(int argc, char const *argv[]){
 	 struct sigaction ss;
 	 ss.sa_handler=crearCliente;
+
+	 printf("Introduce el número de clientes máximos\n");
+	 scanf(" %d",&ClientesMax);
+	 printf("Introduce el número de cajeros\n");
+	 scanf(" %d", &CajerosMax);
 	 
 	  if (-1 == sigaction(SIGUSR1, &ss, NULL)) {
 	  	perror("ENTRADA DE CLIENTES: sigaction");
