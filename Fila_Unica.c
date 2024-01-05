@@ -41,6 +41,7 @@ void *clienteFuncion(void *arg);
 void writeLogMessage(char *id, char *msg);
 
 int main(int argc, char const *argv[]){
+	srand(time(NULL));
 	 if(argc==3){
 	 	if (argv[1] <= 0){
 		clientesMax = 20;
@@ -142,7 +143,11 @@ void *cajeroFuncion(void *cajero_ID){
 	int precio;
 	char entryString[70];
 	char exitString[130];
-    
+    while (1)
+	{
+		
+	
+	
     	pthread_mutex_lock(&mutex_ListaClientes);
         while (contadorClientes == 0) {
               pthread_cond_wait(&clienteCreado, &mutex_ListaClientes);
@@ -199,7 +204,9 @@ void *cajeroFuncion(void *cajero_ID){
                	sprintf(exitString, "El cliente %s no tenía dinero y no ha podido realizar la compra y se va a las: ", idClienteString);
        		hour=time(0);
        		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+       		pthread_mutex_lock(&mutex_logs);
        		writeLogMessage(idString,exitString);
+       		pthread_mutex_unlock(&mutex_logs);
                 break;
             case 97:
                 sprintf(exitString, "Al cliente %s no le funciona la tarjeta y no ha podido realizar la compra y se va a las: ", idClienteString);
@@ -241,14 +248,14 @@ void *cajeroFuncion(void *cajero_ID){
         while(clientes[min_ID-1].estado!=0){
 		pthread_cond_wait(&clienteAtendido, &mutex_ListaClientes);
 			
-	}
+		}
         pthread_mutex_unlock(&mutex_ListaClientes);
         numAtenciones ++;
         if (numAtenciones == 10) {
             numAtenciones = 0;
             sleep(20);
         }
-       
+	}
 }
 void *reponedorFuncion(void *arg){
     pthread_mutex_lock(&mutex_Reponedor);
@@ -304,11 +311,12 @@ void *clienteFuncion(void *clienteID){
 	pthread_cond_signal(&clienteAtendido);
 	contadorClientes--;
 	pthread_mutex_unlock(&mutex_ListaClientes);
+	pthread_exit;
 
 }
 int calculaNumRandom(int min, int max) {
     //calcula un numero random entre el minimo y el maximo
-    srand(getpid());
+    
     return rand() % (max-min+1) +min;
 }
 void writeLogMessage(char *id, char *msg) {
