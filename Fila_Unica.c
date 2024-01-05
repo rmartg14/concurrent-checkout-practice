@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <string.h>
 
 int ClientesMax;
 int CajerosMax ;
@@ -103,10 +104,16 @@ void crearCliente(int sig){
 		contadorClientes++;
 	}	
 	pthread_mutex_unlock(&mutex_ListaClientes);
-}void *cajeroFuncion(void *arg){
+}void *cajeroFuncion(void *cajero_ID){
 	int numAtenciones;
 	int min_ID = 21;
-	char *msg;
+	int id=cajero_ID;
+	char idClienteString[15];
+	char idString[15];
+	char precioString[10];
+	int precio;
+	char entryString[70];
+	char exitString[130];
     while(1){
         while (contadorClientes == 0) {
             sleep(1);
@@ -122,13 +129,23 @@ void crearCliente(int sig){
         
         
         pthread_mutex_unlock(&mutex_ListaClientes);
+        
         int tiempo_atencion = calculaNumRandom(1,5);
-        *msg = "El cliente ha empezado a ser atendido";
-        writeLogMessage(min_ID,*msg);
+        sprintf(idString, "cajero_%02d", id);
+	sprintf(idClienteString, "%02d", min_ID);
+	sprintf(entryString, "El cliente %s empieza a ser atendido a las: ", idClienteString);
+	time_t hour=time(0);
+       	strftime(entryString + strlen(entryString), sizeof(entryString) - strlen(entryString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+    	writeLogMessage(idString,entryString);
         sleep(tiempo_atencion);
         int res = calculaNumRandom(1,100);
+        precio= calculaNumRandom(1,100);
         if (res <= 70) {
-            *msg = "La copra se ha realizado correctamente";
+            	sprintf(precioString, "%02d", precio);
+        	sprintf(exitString, "El cliente %s efectua su compra sin problemas gastando %s a las: ", idClienteString, precioString);
+        	hour=time(0);
+        	strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+        	writeLogMessage(idString,exitString);
         } else if (res>= 71 && res <= 95) {
             pthread_mutex_lock(&mutex_Reponedor);
             estadoReponedor=1;
@@ -137,27 +154,45 @@ void crearCliente(int sig){
                 pthread_cond_wait(&reponedorAcceso, &mutex_Reponedor);
             }
             pthread_mutex_unlock(&mutex_Reponedor);
+            sprintf(precioString, "%02d", precio);
+            sprintf(exitString, "El cliente %s efectua su compra tras esperar al reponedor gastando %s a las: ", idClienteString, precioString);
+            hour=time(0);
+            strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+            writeLogMessage(idString,exitString);
         } else if (res >= 96) {
             switch (res) {
             case 96:
-                *msg = "El cliente no tenía dinero y no ha podido realizar la compra";
+               	sprintf(exitString, "El cliente %s no tenía dinero y no ha podido realizar la compra y se va a las: ", idClienteString);
+       		hour=time(0);
+       		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+       		writeLogMessage(idString,exitString);
                 break;
             case 97:
-                *msg = "Al cliente no le funciona la tarjeta y no ha podido realizar la compra";
+                sprintf(exitString, "Al cliente %s no le funciona la tarjeta y no ha podido realizar la compra y se va a las: ", idClienteString);
+            	hour=time(0);
+       		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+       		writeLogMessage(idString,exitString);
                 break;
             case 98:
-                *msg = "El cliente ha tenido una urgencia medica y no ha podido realizar la compra";
+                sprintf(exitString, "El cliente %s ha tenido una urgencia medica y no ha podido realizar la compra y se va a las: ", idClienteString);
+                hour=time(0);
+       		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+       		writeLogMessage(idString,exitString);
                 break;
             case 99:
-                *msg = "El cliente era un fugitivo y ha sido arrestado por la policía, debido a eso no ha podido realizar la compra";
+                sprintf(exitString, "El cliente %s era un fugitivo y ha sido arrestado por la policía no realizando su compra a las: ", idClienteString);
+		hour=time(0);
+       		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+       		writeLogMessage(idString,exitString);
                 break;
             default:
-                *msg = "El cliente ha sido sorprendido robando choped y se le ha echado de la tienda, por lo cual no ha podido terminar la compra";
-                break;
+                sprintf(exitString, "El cliente %s ha sido sorprendido robando choped y se le ha echado de la tiendasin realizar su compra a las: ", idClienteString);
+		hour=time(0);
+       		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
+       		writeLogMessage(idString,exitString);
             }
             
         }
-        writeLogMessage(min_ID,*msg);
         pthread_mutex_lock(&mutex_ListaClientes);
         clientes[min_ID].estado = 2;
         pthread_mutex_unlock(&mutex_ListaClientes);
