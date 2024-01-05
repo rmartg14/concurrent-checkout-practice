@@ -9,13 +9,18 @@
 #include <sys/wait.h>
 
 #define ClientesMax 20 
-#define Cajeros 3
+#define CajerosMax 3
 struct Cliente{
 	int estado;
 	int id;
 
 };
+struct Cajero{
+    int id;
+    int numAtenciones;
+};
 struct Cliente *clientes;
+struct Cajero *cajeros;
 pthread_t cajeros, reponedor, cliente;
 pthread_mutex_t mutex_logs;
 pthread_mutex_t mutex_ListaClientes;
@@ -23,13 +28,12 @@ pthread_mutex_t mutex_Reponedor;
 pthread_cond_t reponedorAcceso;
 FILE *logFile;
 const char *logFileName = "./registroCaja.log";
-int contadorClientes, numeroClientes;
+int contadorClientes, numeroClientes, estadoReponedor;
 void crearCliente(int sig);
 int calculaNumRandom(int min, int max);
 void *cajeroFuncion(void *arg);
 void *reponedorFuncion(void *arg);
 void *clienteFuncion(void *arg);
-//manejador señales (FALTA)
 
 int main(int argc, char const *argv[]){
 	 struct sigaction ss;
@@ -54,7 +58,7 @@ int main(int argc, char const *argv[]){
 	numeroClientes=ClientesMax;
 	clientes =(struct Cliente *)malloc(sizeof(struct Cliente) * numeroClientes);
 	contadorClientes=0;
-	for (int i = 0; i < Cajeros; i++) {
+	for (int i = 0; i < CajerosMax; i++) {
 		pthread_create(&cajeros, NULL, cajeroFuncion, NULL);
 	}
     	pthread_create(&reponedor, NULL, reponedorFuncion, NULL);
@@ -90,63 +94,80 @@ void crearCliente(int sig){
 	int counter = 0;
 	int min_ID = 21;
 	char *msg;
-	while (contadorClientes == 0) {
-		sleep(1);
-	}
-	pthread_mutex_lock(&mutex_ListaClientes);
-	
-	for (int i = 0; i < contadorClientes; i++) {
-		if(clientes[i].id<min_ID){
-			min_ID = clientes[i].id;
-		}
-	}
-	clientes[min_ID].estado = 1;
-	
-	
-	pthread_mutex_unlock(&mutex_ListaClientes);
-	int tiempo_atencion = calculaNumRandom(1,5);
-	*msg = "El cliente ha empezado a ser atendido";
-	writeLogMessage(min_ID,*msg);
-	sleep(tiempo_atencion);
-	int res = calculaNumRandom(1,100);
-	if (res <= 70) {
-		*msg = "La copra se ha realizado correctamente";
-	} else if (res>= 71 && res <= 95) {
-		pthread_mutex_lock(&mutex_Reponedor);
-		//Falta llamar al reponedor
-		pthread_mutex_unlock(&mutex_Reponedor);
-	} else if (res >= 96) {
-		switch (res) {
-		case 96:
-			*msg = "El cliente no tenía dinero y no ha podido realizar la compra";
-			break;
-		case 97:
-			*msg = "Al cliente no le funciona la tarjeta y no ha podido realizar la compra";
-			break;
-		case 98:
-			*msg = "El cliente ha tenido una urgencia medica y no ha podido realizar la compra";
-			break;
-		case 99:
-			*msg = "El cliente era un fugitivo y ha sido arrestado por la policía, debido a eso no ha podido realizar la compra";
-			break;
-		default:
-			*msg = "El cliente ha sido sorprendido robando choped y se le ha echado de la tienda, por lo cual no ha podido terminar la compra";
-			break;
-		}
-		
-	}
-	writeLogMessage(min_ID,*msg);
-	pthread_mutex_lock(&mutex_ListaClientes);
-	clientes[min_ID].estado = 2;
-	pthread_mutex_unlock(&mutex_ListaClientes);
-	counter ++;
-	if (counter = 10) {
-		counter = 0;
-		sleep(20);
-	}
-	
+    while(1){
+        while (contadorClientes == 0) {
+            sleep(1);
+        }
+        pthread_mutex_lock(&mutex_ListaClientes);
+        
+        for (int i = 0; i < contadorClientes; i++) {
+            if(clientes[i].id<min_ID){
+                min_ID = clientes[i].id;
+            }
+        }
+        clientes[min_ID].estado = 1;
+        
+        
+        pthread_mutex_unlock(&mutex_ListaClientes);
+        int tiempo_atencion = calculaNumRandom(1,5);
+        *msg = "El cliente ha empezado a ser atendido";
+        writeLogMessage(min_ID,*msg);
+        sleep(tiempo_atencion);
+        int res = calculaNumRandom(1,100);
+        if (res <= 70) {
+            *msg = "La copra se ha realizado correctamente";
+        } else if (res>= 71 && res <= 95) {
+            pthread_mutex_lock(&mutex_Reponedor);
+            estadoReponedor=1;
+            pthread_cond_signal(&reponedorAcceso);
+            while(estadoReponedor==1){
+                pthread_cond_wait(&reponedorAcceso, &mutex_Reponedor);
+            }
+            pthread_mutex_unlock(&mutex_Reponedor);
+        } else if (res >= 96) {
+            switch (res) {
+            case 96:
+                *msg = "El cliente no tenía dinero y no ha podido realizar la compra";
+                break;
+            case 97:
+                *msg = "Al cliente no le funciona la tarjeta y no ha podido realizar la compra";
+                break;
+            case 98:
+                *msg = "El cliente ha tenido una urgencia medica y no ha podido realizar la compra";
+                break;
+            case 99:
+                *msg = "El cliente era un fugitivo y ha sido arrestado por la policía, debido a eso no ha podido realizar la compra";
+                break;
+            default:
+                *msg = "El cliente ha sido sorprendido robando choped y se le ha echado de la tienda, por lo cual no ha podido terminar la compra";
+                break;
+            }
+            
+        }
+        writeLogMessage(min_ID,*msg);
+        pthread_mutex_lock(&mutex_ListaClientes);
+        clientes[min_ID].estado = 2;
+        pthread_mutex_unlock(&mutex_ListaClientes);
+        counter ++;
+        if (counter = 10) {
+            counter = 0;
+            sleep(20);
+        }
+    }    
 }
-void *reponedorFuncion(void *arg);
+void *reponedorFuncion(void *arg){
+    pthread_mutex_lock(&mutex_Reponedor);
+    while (estadoReponedor==0){
+        pthread_cond_wait(&reponedorAcceso, &mutex_Reponedor);
+    }
+    int tiempo_trabajo = calculaNumRandom(1,5);
+    sleep(tiempo_trabajo);
+    estadoReponedor=0;
+    pthread_cond_signal(&reponedorAcceso);
+    pthread_mutex_unlock(&mutex_Reponedor);
+}
+
+
 void *clienteFuncion(void *clienteID){
 	int tiempoEspera;
 	int id=*(int*)clienteID;
@@ -161,7 +182,7 @@ void *clienteFuncion(void *clienteID){
 	tiempoEspera=calculaNumRandom(1,100);
 	if(tiempoEspera<90){
 		while(clientes[id-1].estado!=2){
-			pause();
+			sleep(1);
 			
 		}
 		time_t hour=time(0);
