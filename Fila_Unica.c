@@ -132,7 +132,7 @@ void *cajeroFuncion(void *cajero_ID){
 	int precio;
 	char entryString[70];
 	char exitString[130];
-    while(1){
+    
     	pthread_mutex_lock(&mutex_ListaClientes);
         while (contadorClientes == 0) {
               pthread_cond_wait(&clienteCreado, &mutex_ListaClientes);
@@ -239,7 +239,7 @@ void *cajeroFuncion(void *cajero_ID){
             numAtenciones = 0;
             sleep(20);
         }
-    }   
+       
 }
 void *reponedorFuncion(void *arg){
     pthread_mutex_lock(&mutex_Reponedor);
