@@ -140,7 +140,7 @@ void *cajeroFuncion(void *cajero_ID){
         
         
         for (int i = 0; i < contadorClientes; i++) {
-            if(clientes[i].id<min_ID&&clientes[i].estado==0){
+            if(clientes[i].id<min_ID&&clientes[i].estado==0 && clientes[i].id != 0){
                 min_ID = clientes[i].id;
             }
         }
