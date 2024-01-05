@@ -36,13 +36,13 @@ void *reponedorFuncion(void *arg);
 void *clienteFuncion(void *arg);
 
 int main(int argc, char const *argv[]){
-	 struct sigaction ss;
-	 ss.sa_handler=crearCliente;
+	struct sigaction ss;
+	ss.sa_handler=crearCliente;
 	 
-	  if (-1 == sigaction(SIGUSR1, &ss, NULL)) {
+	if (-1 == sigaction(SIGUSR1, &ss, NULL)) {
 	  	perror("ENTRADA DE CLIENTES: sigaction");
 		exit(-1);
-	  }
+	}
 	if (pthread_mutex_init(&mutex_logs, NULL) != 0){
 		exit(-1);
 	}
@@ -70,8 +70,9 @@ int main(int argc, char const *argv[]){
 	{
 		pause();
 	}
-    return 0;
+	return 0;
 }
+
 void crearCliente(int sig){
 	pthread_mutex_lock(&mutex_ListaClientes);
 	if(contadorClientes>=ClientesMax){
@@ -115,7 +116,7 @@ void crearCliente(int sig){
         sleep(tiempo_atencion);
         int res = calculaNumRandom(1,100);
         if (res <= 70) {
-            *msg = "La copra se ha realizado correctamente";
+            *msg = "La compra se ha realizado correctamente";
         } else if (res>= 71 && res <= 95) {
             pthread_mutex_lock(&mutex_Reponedor);
             estadoReponedor=1;
@@ -155,6 +156,8 @@ void crearCliente(int sig){
         }
     }    
 }
+
+
 void *reponedorFuncion(void *arg){
     pthread_mutex_lock(&mutex_Reponedor);
     while (estadoReponedor==0){
@@ -201,11 +204,13 @@ void *clienteFuncion(void *clienteID){
 	pthread_mutex_unlock(&mutex_ListaClientes);
 
 }
+
 int calculaNumRandom(int min, int max) {
     //calcula un numero random entre el minimo y el maximo
     srand(getpid());
     return rand() % (max-min+1) +min;
 }
+
 void writeLogMessage(char *id, char *msg) {
     // Calculamos la hora actual
     time_t now = time(0);
