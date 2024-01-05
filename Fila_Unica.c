@@ -38,6 +38,7 @@ int calculaNumRandom(int min, int max);
 void *cajeroFuncion(void *arg);
 void *reponedorFuncion(void *arg);
 void *clienteFuncion(void *arg);
+void writeLogMessage(char *id, char *msg);
 
 int main(int argc, char const *argv[]){
 	 if(argc==3){
