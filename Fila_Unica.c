@@ -74,9 +74,17 @@ int main(int argc, char const *argv[]){
 	if (pthread_mutex_init(&mutex_Reponedor, NULL) != 0){
 		exit(-1);
 	}
+	if (pthread_cond_init(&clienteCreado, NULL) != 0){
+		exit(-1);
+	}
+	if (pthread_cond_init(&clienteAtendido, NULL) != 0){
+		exit(-1);
+	}
 	if (pthread_cond_init(&reponedorAcceso, NULL) != 0){
 		exit(-1);
 	}
+	
+
 	numeroClientes=clientesMax;
 	numeroCajeros=cajerosMax;
 	clientes =(struct Cliente *)malloc(sizeof(struct Cliente) * numeroClientes);
@@ -229,7 +237,7 @@ void *cajeroFuncion(void *cajero_ID){
         }
         pthread_mutex_lock(&mutex_ListaClientes);
         clientes[min_ID-1].estado = 2;
-        pthread_cond_signal(&reponedorAcceso);
+        pthread_cond_signal(&clienteAtendido);
         while(clientes[min_ID-1].estado!=0){
 		pthread_cond_wait(&clienteAtendido, &mutex_ListaClientes);
 			
@@ -271,7 +279,6 @@ void *clienteFuncion(void *clienteID){
 	tiempoEspera=calculaNumRandom(1,100);
 	if(tiempoEspera<90){
 		pthread_mutex_lock(&mutex_ListaClientes);
-		printf("la posicion del cliente 1 es %d",id-1);
 		pthread_cond_signal(&clienteCreado);
 		while(clientes[id-1].estado!=2){
 			pthread_cond_wait(&clienteAtendido, &mutex_ListaClientes);
