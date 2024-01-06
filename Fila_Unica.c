@@ -30,9 +30,11 @@ pthread_mutex_t mutex_Reponedor;
 pthread_cond_t reponedorAcceso;
 pthread_cond_t clienteAtendido;
 pthread_cond_t clienteCreado;
+pthread_cond_t cajeroOcupado;
 FILE *logFile;
 const char *logFileName = "./registroCaja2.log";
-int contadorClientes, numeroClientes, numeroCajeros, estadoReponedor;
+int contadorClientes, numeroClientes, numeroCajeros, estadoReponedor, estadoHilo;
+int totalClientes,clientesAtendidos;
 void crearCliente(int sig);
 int calculaNumRandom(int min, int max);
 void *cajeroFuncion(void *arg);
@@ -41,7 +43,7 @@ void *clienteFuncion(void *arg);
 void writeLogMessage(char *id, char *msg);
 
 int main(int argc, char const *argv[]){
-	srand(time(NULL));
+	srand(getpid());
 	 if(argc==3){
 	 	if (argv[1] <= 0){
 		clientesMax = 20;
@@ -81,6 +83,9 @@ int main(int argc, char const *argv[]){
 	if (pthread_cond_init(&clienteAtendido, NULL) != 0){
 		exit(-1);
 	}
+	if (pthread_cond_init(&cajeroOcupado, NULL) != 0){
+		exit(-1);
+	}
 	if (pthread_cond_init(&reponedorAcceso, NULL) != 0){
 		exit(-1);
 	}
@@ -106,6 +111,7 @@ int main(int argc, char const *argv[]){
 	while (1)
 	{
 		pause();
+		sleep(1);
 	}
     return 0;
 }
@@ -127,6 +133,7 @@ void crearCliente(int sig){
 		clientes[i].id=i+1;
 		pthread_create(&clientes[i].clienteHilo, NULL, clienteFuncion, &clientes[i].id);
 		contadorClientes++;
+		totalClientes++;
 		//quitarluego
 		printf("cliente añadido\n");
 	}	
@@ -135,6 +142,7 @@ void crearCliente(int sig){
 void *cajeroFuncion(void *cajero_ID){
 	sleep(1);
 	int numAtenciones;
+	int idImprimir;
 	int min_ID = 21;
 	int id=*(int*)cajero_ID;
 	char idClienteString[15];
@@ -143,13 +151,10 @@ void *cajeroFuncion(void *cajero_ID){
 	int precio;
 	char entryString[70];
 	char exitString[130];
-    while (1)
-	{
-		
-	
-	
+    while(1){
+    	estadoHilo=0;
     	pthread_mutex_lock(&mutex_ListaClientes);
-        while (contadorClientes == 0) {
+        while (estadoHilo == 0) {
               pthread_cond_wait(&clienteCreado, &mutex_ListaClientes);
         }
         
@@ -159,13 +164,14 @@ void *cajeroFuncion(void *cajero_ID){
                 min_ID = clientes[i].id;
             }
         }
+        idImprimir=clientesAtendidos+min_ID;
         clientes[min_ID-1].estado = 1;
-     
+     	pthread_cond_signal(&cajeroOcupado);
         pthread_mutex_unlock(&mutex_ListaClientes);
         
         int tiempo_atencion = calculaNumRandom(1,5);
         sprintf(idString, "cajero_%02d", id);
-	sprintf(idClienteString, "%02d", min_ID);
+	sprintf(idClienteString, "%02d", idImprimir);
 	sprintf(entryString, "El cliente %s empieza a ser atendido a las: ", idClienteString);
 	time_t hour=time(0);
        	strftime(entryString + strlen(entryString), sizeof(entryString) - strlen(entryString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
@@ -204,9 +210,7 @@ void *cajeroFuncion(void *cajero_ID){
                	sprintf(exitString, "El cliente %s no tenía dinero y no ha podido realizar la compra y se va a las: ", idClienteString);
        		hour=time(0);
        		strftime(exitString + strlen(exitString), sizeof(exitString) - strlen(exitString), "%Y-%m-%d %H:%M:%S", localtime(&hour));
-       		pthread_mutex_lock(&mutex_logs);
        		writeLogMessage(idString,exitString);
-       		pthread_mutex_unlock(&mutex_logs);
                 break;
             case 97:
                 sprintf(exitString, "Al cliente %s no le funciona la tarjeta y no ha podido realizar la compra y se va a las: ", idClienteString);
@@ -245,17 +249,19 @@ void *cajeroFuncion(void *cajero_ID){
         pthread_mutex_lock(&mutex_ListaClientes);
         clientes[min_ID-1].estado = 2;
         pthread_cond_signal(&clienteAtendido);
+        
         while(clientes[min_ID-1].estado!=0){
 		pthread_cond_wait(&clienteAtendido, &mutex_ListaClientes);
 			
-		}
+	}
+	
         pthread_mutex_unlock(&mutex_ListaClientes);
         numAtenciones ++;
         if (numAtenciones == 10) {
             numAtenciones = 0;
             sleep(20);
         }
-	}
+    }
 }
 void *reponedorFuncion(void *arg){
     pthread_mutex_lock(&mutex_Reponedor);
@@ -274,10 +280,11 @@ void *clienteFuncion(void *clienteID){
 	int tiempoEspera;
 	int id=*(int*)clienteID;
 	char idString[15];
+	int idImprimir=clientesAtendidos+id;
 	char entryString[52];
 	char exitString[65];
 	time_t hour=time(0);
-	sprintf(idString, "cliente_%02d", id);
+	sprintf(idString, "cliente_%02d", idImprimir);
 	strftime(entryString, sizeof(entryString), "La hora de entrada es: %Y-%m-%d %H:%M:%S", localtime(&hour));
 	pthread_mutex_lock(&mutex_logs);
     	writeLogMessage(idString, entryString);
@@ -286,7 +293,13 @@ void *clienteFuncion(void *clienteID){
 	tiempoEspera=calculaNumRandom(1,100);
 	if(tiempoEspera<90){
 		pthread_mutex_lock(&mutex_ListaClientes);
+		estadoHilo=1;
 		pthread_cond_signal(&clienteCreado);
+		while(clientes[id-1].estado==0){
+			pthread_cond_wait(&cajeroOcupado, &mutex_ListaClientes);
+			
+		}
+		
 		while(clientes[id-1].estado!=2){
 			pthread_cond_wait(&clienteAtendido, &mutex_ListaClientes);
 			
@@ -310,8 +323,8 @@ void *clienteFuncion(void *clienteID){
 	clientes[id-1].id=0;
 	pthread_cond_signal(&clienteAtendido);
 	contadorClientes--;
+	clientesAtendidos++;
 	pthread_mutex_unlock(&mutex_ListaClientes);
-	pthread_exit;
 
 }
 int calculaNumRandom(int min, int max) {
