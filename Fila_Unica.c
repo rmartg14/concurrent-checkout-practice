@@ -20,16 +20,17 @@ struct Cliente{
 struct Cajero{
     pthread_t cajeroHilo;
     int id;
+    int estado;
 };
 struct Cliente *clientes;
 struct Cajero *cajeros;
 pthread_t reponedorHilo;
 pthread_mutex_t mutex_logs;
 pthread_mutex_t mutex_ListaClientes;
+pthread_mutex_t mutex_ListaCajeros;
 pthread_mutex_t mutex_Reponedor;
 pthread_cond_t reponedorAcceso;
 pthread_cond_t clienteAtendido;
-pthread_cond_t clienteAtendido2;
 pthread_cond_t clienteCreado;
 pthread_cond_t cajeroOcupado;
 FILE *logFile;
@@ -75,6 +76,9 @@ int main(int argc, char const *argv[]){
 	if (pthread_mutex_init(&mutex_ListaClientes, NULL) != 0){
 		exit(-1);
 	}
+	if (pthread_mutex_init(&mutex_ListaCajeros, NULL) != 0){
+		exit(-1);
+	}
 	if (pthread_mutex_init(&mutex_Reponedor, NULL) != 0){
 		exit(-1);
 	}
@@ -84,9 +88,7 @@ int main(int argc, char const *argv[]){
 	if (pthread_cond_init(&clienteAtendido, NULL) != 0){
 		exit(-1);
 	}
-	if (pthread_cond_init(&clienteAtendido2, NULL) != 0){
-		exit(-1);
-	}
+	
 	if (pthread_cond_init(&cajeroOcupado, NULL) != 0){
 		exit(-1);
 	}
@@ -146,14 +148,15 @@ void *cajeroFuncion(void *cajero_ID){
 	int precio;
 	char entryString[70];
 	char exitString[130];
+	
     while(1){
     	min_ID = 50;
-    	pthread_mutex_lock(&mutex_ListaClientes);
-        while (estadoHilo == 0) {
-              pthread_cond_wait(&clienteCreado, &mutex_ListaClientes);
+    	pthread_mutex_lock(&mutex_ListaCajeros);
+        while (cajeros[id-1].estado == 0) {
+              pthread_cond_wait(&clienteCreado, &mutex_ListaCajeros);
         }
-        
-        
+        pthread_mutex_unlock(&mutex_ListaCajeros);
+        pthread_mutex_lock(&mutex_ListaClientes);
         for (int i = 0; i < contadorClientes; i++) {
             if(clientes[i].id<min_ID&&clientes[i].estado==0&&clientes[i].id>0){
                 min_ID = clientes[i].id;
@@ -166,7 +169,7 @@ void *cajeroFuncion(void *cajero_ID){
          printf("soy %d coincido con %d y mi estado es %d\n",clientes[min_ID-1].id,min_ID,clientes[min_ID-1].estado);
         idImprimir=clientesAtendidos+min_ID;
         clientes[min_ID-1].estado = 1;
-     	//pthread_cond_signal(&cajeroOcupado);
+     	pthread_cond_signal(&cajeroOcupado);
         pthread_mutex_unlock(&mutex_ListaClientes);
         
         int tiempo_atencion = calculaNumRandom(1,5);
@@ -247,14 +250,17 @@ void *cajeroFuncion(void *cajero_ID){
             
         }
         printf("Soy el cliente %d y TERMINE DE comprar\n",min_ID);
+        
+        
         pthread_mutex_lock(&mutex_ListaClientes);
         clientes[min_ID-1].estado = 2;
-        pthread_cond_signal(&clienteAtendido);
-        while(clientes[min_ID-1].estado!=0){
-		pthread_cond_wait(&clienteAtendido2, &mutex_ListaClientes);		
-	}
-	
+        pthread_cond_signal(&clienteAtendido);	
         pthread_mutex_unlock(&mutex_ListaClientes);
+        pthread_mutex_lock(&mutex_ListaCajeros);
+        while (cajeros[id-1].estado == 1) {
+              pthread_cond_wait(&clienteCreado, &mutex_ListaCajeros);
+        }
+        pthread_mutex_unlock(&mutex_ListaCajeros);
         numAtenciones ++;
         /*
         if (numAtenciones == 10) {
@@ -297,16 +303,28 @@ void *clienteFuncion(void *clienteID){
 	sleep(10);
 	tiempoEspera=calculaNumRandom(1,100);
 	if(tiempoEspera<90){
+		pthread_mutex_lock(&mutex_ListaCajeros);
+		int i=0;
+		int cajeroEncontrado=0;
+		while(i<cajerosMax&&cajeroEncontrado==0){
+			if(cajeros[i].estado==0){
+				cajeros[i].estado=1;
+				cajeroEncontrado=1;
+				pthread_cond_signal(&clienteCreado);
+			}else{
+				i++;
+			}
+		}
+			
+		pthread_mutex_unlock(&mutex_ListaCajeros);
 		pthread_mutex_lock(&mutex_ListaClientes);
-		estadoHilo=1;
-		pthread_cond_signal(&clienteCreado);
 		printf("llego hasta aqui %d\n",id);
-		/*
+		
 		while(clientes[id-1].estado==0){
 			pthread_cond_wait(&cajeroOcupado, &mutex_ListaClientes);
 			
 		}
-		*/
+		
 		printf("Soy atendido %d\n",id);
 		
 		while(clientes[id-1].estado!=2){
@@ -320,13 +338,17 @@ void *clienteFuncion(void *clienteID){
 		pthread_mutex_lock(&mutex_logs);
     		writeLogMessage(idString, exitString);
     		pthread_mutex_unlock(&mutex_logs);
-		
+		pthread_mutex_lock(&mutex_ListaCajeros);
+		cajeros[i].estado=0;
+		pthread_cond_signal(&clienteCreado);
+		pthread_mutex_lock(&mutex_ListaCajeros);
 	}else{
 		time_t hour=time(0);
 		strftime(exitString, sizeof(exitString), "El cliente no es atendido y se va a las: %Y-%m-%d %H:%M:%S", localtime(&hour));
 		pthread_mutex_lock(&mutex_logs);
     		writeLogMessage(idString, exitString);
     		pthread_mutex_unlock(&mutex_logs);
+    		
 	}
 	pthread_mutex_lock(&mutex_ListaClientes);
 	estadoHilo=0;
@@ -336,7 +358,6 @@ void *clienteFuncion(void *clienteID){
 		clientes[i].id=clientes[i+1].id;
 		i++;
 	}
-	pthread_cond_signal(&clienteAtendido2);
 	contadorClientes--;
 	clientesAtendidos++;
 	pthread_mutex_unlock(&mutex_ListaClientes);
