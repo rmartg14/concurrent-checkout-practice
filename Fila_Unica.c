@@ -36,7 +36,7 @@ pthread_cond_t clienteCreado;
 pthread_cond_t cajeroOcupado;
 FILE *logFile;
 const char *logFileName = "./registroCaja2.log";
-int contadorClientes, numeroClientes, numeroCajeros, estadoReponedor, estadoHilo;
+int contadorClientes, numeroClientes, numeroCajeros, estadoReponedor, estadoHilo, cajerosDisponibles;
 int totalClientes,clientesAtendidos;
 void crearCliente(int sig);
 void finPrograma(int sig);
@@ -173,8 +173,7 @@ void *cajeroFuncion(void *cajero_ID){
         while (estadoHilo == 0) {
               pthread_cond_wait(&clienteCreado, &mutex_ListaClientes);
         }
-        
-        
+        cajerosDisponibles++;
         for (int i = 0; i < clientesMax; i++) {
             if(clientes[i].id<min_ID&&clientes[i].estado==0&&clientes[i].id>0){
                 min_ID = clientes[i].id;
@@ -278,9 +277,11 @@ void *cajeroFuncion(void *cajero_ID){
         while(clientes[pos].estado!=0){
 		pthread_cond_wait(&clienteAtendido2, &mutex_ListaClientes);		
 	}
-	cajeros[pos].atendidos++;
+	cajeros[id-1].atendidos++;
+	numAtenciones ++;
+	cajerosDisponibles--;
         pthread_mutex_unlock(&mutex_ListaClientes);
-        numAtenciones ++;
+        
         /*
         if (numAtenciones == 10) {
             numAtenciones = 0;
@@ -318,7 +319,7 @@ void *clienteFuncion(void *clientePos){
 	pthread_mutex_lock(&mutex_ListaClientes);
 	int id=clientes[pos].id;
 	idImprimir=id;
-	printf("El contador de clientes es %d para %d\n",contadorClientes,id);
+	printf("Hay estoscajeros %d para %d\n",cajerosDisponibles,id);
 	
 	
 	sprintf(idString, "cliente_%02d", idImprimir);
@@ -327,10 +328,17 @@ void *clienteFuncion(void *clientePos){
     	writeLogMessage(idString, entryString);
     	pthread_mutex_unlock(&mutex_logs);
     	if(contadorClientes>3){
-		pthread_mutex_unlock(&mutex_ListaClientes);
-		tiempoEspera=calculaNumRandom(1,100);
+    		pthread_mutex_unlock(&mutex_ListaClientes);
+    		tiempoEspera=calculaNumRandom(1,100);
 		sleep(10);
-		
+		tiempoEspera=calculaNumRandom(1,100);
+		pthread_mutex_lock(&mutex_ListaClientes);
+		if(tiempoEspera<90){
+    			while(cajerosDisponibles==3){
+				pthread_mutex_unlock(&mutex_ListaClientes);
+				sleep(1);
+			}
+		}
 	}
     	pthread_mutex_unlock(&mutex_ListaClientes);
 	if(tiempoEspera<90){
