@@ -188,7 +188,7 @@ void *cajeroFuncion(void *cajero_ID){
         idImprimir=min_ID;
         clientes[pos].estado = 1;
          printf("soy la pos %d id %d y mi estado ha cambiado a %d\n",clientes[pos].posicion,min_ID,clientes[pos].estado);
-     	pthread_cond_signal(&cajeroOcupado);
+     	pthread_cond_broadcast(&cajeroOcupado);
         pthread_mutex_unlock(&mutex_ListaClientes);
         
         int tiempo_atencion = calculaNumRandom(1,5);
