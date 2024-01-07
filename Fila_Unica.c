@@ -132,8 +132,8 @@ int main(int argc, char const *argv[]){
 }
 void crearCliente(int sig){
 	pthread_mutex_lock(&mutex_ListaClientes);
-	if(contadorClientes>=clientesMax){
-		printf("NO se pueden introducir más clientes\n");
+	if(contadorClientes>=12){
+		printf("Maximo de clientes simultaneos alcanzado\n");
 	}else{
 		int i=0;
 		int posEnc=0;
