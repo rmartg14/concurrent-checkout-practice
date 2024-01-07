@@ -166,6 +166,8 @@ void *cajeroFuncion(void *cajero_ID){
 	char precioString[10];
 	int precio;
 	char entryString[70];
+	char descansoEntradaString[70];
+	char descansoSalidaString[70];
 	char exitString[130];
     while(1){
     	min_ID = 50;
@@ -278,16 +280,25 @@ void *cajeroFuncion(void *cajero_ID){
 		pthread_cond_wait(&clienteAtendido2, &mutex_ListaClientes);		
 	}
 	cajeros[id-1].atendidos++;
-	numAtenciones ++;
+	if (cajeros[id-1].atendidos/10!=0&&cajeros[id-1].atendidos%10==0) {
+           	pthread_mutex_unlock(&mutex_ListaClientes);
+            	sprintf(descansoEntradaString, "Voy a descansar 20 seg");
+            	pthread_mutex_lock(&mutex_logs);
+    		writeLogMessage(idString,descansoEntradaString);
+    		pthread_mutex_unlock(&mutex_logs);
+            	sleep(20);
+            	sprintf(descansoSalidaString, "He terminado de descansar");
+            	pthread_mutex_lock(&mutex_logs);
+    		writeLogMessage(idString,descansoSalidaString);
+    		pthread_mutex_unlock(&mutex_logs);
+            	pthread_mutex_lock(&mutex_ListaClientes);
+        }
 	cajerosDisponibles--;
         pthread_mutex_unlock(&mutex_ListaClientes);
         
-        /*
-        if (numAtenciones == 10) {
-            numAtenciones = 0;
-            sleep(20);
-        }
-        */
+        
+        
+        
        }
     }
 }
